@@ -1,0 +1,31 @@
+# Python dependencies. The same file is used locally (no GPU) and on Colab (T4).
+# Input: pip install -r requirements.txt   Output: a ready environment.
+# torch is intentionally unpinned: Colab's preinstalled CUDA build is used; locally pip installs the CPU build.
+
+torch
+torchvision                # imported by qwen-vl-utils
+# 4.49.0 is the release that added Qwen2.5-VL; GeoVLM-R1 configs were saved with it.
+# Pinned for stage 3; if it fails on Colab, record the working version here.
+transformers==4.49.0
+accelerate
+huggingface_hub            # downloads one GeoVLM-R1 subfolder at a time
+# Version pinned on the Qwen2.5-VL model card (image preprocessing helper)
+qwen-vl-utils==0.0.8
+# 4-bit NF4 quantization is only needed on CUDA Linux (Colab); not installed on macOS
+bitsandbytes; platform_system == "Linux"
+
+# Data and schema
+pillow
+numpy
+scipy
+pandas
+pyyaml
+pydantic>=2
+
+# Metrics (pycocoevalcap's METEOR needs Java; Colab has it)
+pycocoevalcap
+scikit-learn
+
+tqdm
+
+# Added in stage 4: outlines (model compatibility will be verified then)

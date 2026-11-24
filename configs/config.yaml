@@ -1,0 +1,71 @@
+# The project's SINGLE configuration file: model names, paths, seed, generation settings.
+# Input: read by every script via src/config.py.  Output: none (settings only).
+# All paths are relative to the repository root unless they are absolute.
+
+seed: 42
+pilot_samples_per_dataset: 15
+
+paths:
+  data_root: data            # on Colab this can be changed to a Google Drive path
+  results_root: results
+  raw_dir: results/raw
+  prompts_dir: prompts
+  pilot_samples: results/pilot_samples.json
+
+# Dataset folders are relative to paths.data_root. See data/README.md for the expected layout.
+datasets:
+  dior:
+    root: DIOR
+    split: test                          # uses ImageSets/Main/test.txt and JPEGImages-test
+  visdrone:
+    root: VisDrone2019-DET-val           # val split: 548 images with ground truth
+    drop_categories: [0, 11]             # 0 = ignored regions, 11 = "others" (not a real class)
+  levir_cdplus:
+    root: LEVIR-CD+
+    split: test
+    min_component_area: 20               # changed regions smaller than this (pixels) are ignored as noise
+    min_change_ratio: 0.01               # pilot uses only pairs where >= 1% of pixels changed ("clear change")
+  rsicd:
+    root: RSICD
+    images_dir: RSICD_images
+    annotations: dataset_rsicd.json
+    split: test
+
+generation:
+  do_sample: false           # greedy decoding (same settings for every model)
+  max_new_tokens:            # per task (stage 3 decision). A raw line gets truncated=true if the limit is hit.
+    detection: 1024          # crowded VisDrone images (21-161 objects) need long box lists
+    change: 512
+    caption: 256
+  repetition_penalty: 1.0    # set explicitly: model defaults differ (Qwen2-VL 1.0, Qwen2.5-VL/GeoVLM 1.05)
+  dtype: float16             # T4 has no native bfloat16 (GeoVLM-R1 toolkit also uses float16)
+
+# Image size limits. Qwen models: images are resized (keeping aspect ratio) so that
+# min_pixels <= H*W <= max_pixels, with sides a multiple of 28 (qwen_vl_utils.smart_resize).
+# 1280*28*28 is the example value on the Qwen2-VL model card.
+images:
+  qwen_min_pixels: 200704    # 256*28*28
+  qwen_max_pixels: 1003520   # 1280*28*28
+  geovlm_size: 448           # GeoVLM-R1 official inference: resized_height = resized_width = 448
+
+prompts:
+  version: v1                # prompts/<version>.yaml ; every raw line stores the version
+
+# family: decides the prompt wording, the coordinate convention and the box parser (src/box_parsers.py).
+models:
+  qwen2vl_7b:
+    family: qwen2vl
+    hf_id: Qwen/Qwen2-VL-7B-Instruct
+    quantization: nf4_4bit   # bitsandbytes 4-bit NF4 (~6 GB VRAM in the PDF feasibility test)
+  qwen25vl_3b:
+    family: qwen25vl
+    hf_id: Qwen/Qwen2.5-VL-3B-Instruct
+    quantization: none
+  geovlm_r1:
+    family: geovlm
+    hf_id: ibm-research/GeoVLM-R1
+    quantization: none
+    subfolder_per_task:      # one 3B checkpoint per task (~7.5 GB each)
+      detection: GeoVLM_R1_grounding
+      change: GeoVLM_R1_CD_Caption
+      caption: GeoVLM_R1_Image_caption

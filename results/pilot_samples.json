@@ -1,0 +1,330 @@
+{
+  "seed": 42,
+  "samples_per_dataset": 15,
+  "datasets": {
+    "visdrone": {
+      "split": null,
+      "n_candidates": 548,
+      "samples": [
+        {
+          "sample_id": "0000280_01801_d_0000621",
+          "stratum": "bus",
+          "n_objects": 90
+        },
+        {
+          "sample_id": "0000280_00401_d_0000614",
+          "stratum": "van",
+          "n_objects": 59
+        },
+        {
+          "sample_id": "0000330_01401_d_0000807",
+          "stratum": "people",
+          "n_objects": 161
+        },
+        {
+          "sample_id": "0000327_00601_d_0000714",
+          "stratum": "bicycle",
+          "n_objects": 84
+        },
+        {
+          "sample_id": "0000335_02353_d_0000055",
+          "stratum": "awning-tricycle",
+          "n_objects": 82
+        },
+        {
+          "sample_id": "0000276_03801_d_0000526",
+          "stratum": "truck",
+          "n_objects": 64
+        },
+        {
+          "sample_id": "0000277_00201_d_0000540",
+          "stratum": "car",
+          "n_objects": 83
+        },
+        {
+          "sample_id": "0000289_02601_d_0000824",
+          "stratum": "pedestrian",
+          "n_objects": 58
+        },
+        {
+          "sample_id": "0000359_02549_d_0000709",
+          "stratum": "tricycle",
+          "n_objects": 21
+        },
+        {
+          "sample_id": "0000242_04600_d_0000014",
+          "stratum": "motor",
+          "n_objects": 29
+        },
+        {
+          "sample_id": "0000346_00001_d_0000346",
+          "stratum": "bus",
+          "n_objects": 82
+        },
+        {
+          "sample_id": "0000287_02201_d_0000770",
+          "stratum": "van",
+          "n_objects": 27
+        },
+        {
+          "sample_id": "0000356_04901_d_0000654",
+          "stratum": "people",
+          "n_objects": 102
+        },
+        {
+          "sample_id": "0000271_06001_d_0000402",
+          "stratum": "bicycle",
+          "n_objects": 158
+        },
+        {
+          "sample_id": "0000333_03333_d_0000018",
+          "stratum": "awning-tricycle",
+          "n_objects": 62
+        }
+      ]
+    },
+    "levir_cdplus": {
+      "split": "test",
+      "n_candidates": 198,
+      "samples": [
+        {
+          "sample_id": "train_840",
+          "stratum": "change",
+          "n_objects": 90
+        },
+        {
+          "sample_id": "train_846",
+          "stratum": "change",
+          "n_objects": 43
+        },
+        {
+          "sample_id": "train_715",
+          "stratum": "change",
+          "n_objects": 49
+        },
+        {
+          "sample_id": "train_812",
+          "stratum": "change",
+          "n_objects": 14
+        },
+        {
+          "sample_id": "train_879",
+          "stratum": "change",
+          "n_objects": 15
+        },
+        {
+          "sample_id": "train_723",
+          "stratum": "change",
+          "n_objects": 45
+        },
+        {
+          "sample_id": "train_962",
+          "stratum": "change",
+          "n_objects": 20
+        },
+        {
+          "sample_id": "train_859",
+          "stratum": "change",
+          "n_objects": 8
+        },
+        {
+          "sample_id": "train_886",
+          "stratum": "change",
+          "n_objects": 9
+        },
+        {
+          "sample_id": "train_954",
+          "stratum": "change",
+          "n_objects": 10
+        },
+        {
+          "sample_id": "train_683",
+          "stratum": "change",
+          "n_objects": 16
+        },
+        {
+          "sample_id": "train_820",
+          "stratum": "change",
+          "n_objects": 48
+        },
+        {
+          "sample_id": "train_932",
+          "stratum": "change",
+          "n_objects": 32
+        },
+        {
+          "sample_id": "train_877",
+          "stratum": "change",
+          "n_objects": 13
+        },
+        {
+          "sample_id": "train_919",
+          "stratum": "change",
+          "n_objects": 29
+        }
+      ]
+    },
+    "dior": {
+      "split": "test",
+      "n_candidates": 11738,
+      "samples": [
+        {
+          "sample_id": "17687",
+          "stratum": "expresswaytollstation",
+          "n_objects": 5
+        },
+        {
+          "sample_id": "16583",
+          "stratum": "trainstation",
+          "n_objects": 7
+        },
+        {
+          "sample_id": "14379",
+          "stratum": "storagetank",
+          "n_objects": 38
+        },
+        {
+          "sample_id": "15381",
+          "stratum": "airplane",
+          "n_objects": 4
+        },
+        {
+          "sample_id": "18462",
+          "stratum": "vehicle",
+          "n_objects": 38
+        },
+        {
+          "sample_id": "23172",
+          "stratum": "basketballcourt",
+          "n_objects": 3
+        },
+        {
+          "sample_id": "21389",
+          "stratum": "stadium",
+          "n_objects": 7
+        },
+        {
+          "sample_id": "15886",
+          "stratum": "harbor",
+          "n_objects": 16
+        },
+        {
+          "sample_id": "16587",
+          "stratum": "airport",
+          "n_objects": 1
+        },
+        {
+          "sample_id": "13311",
+          "stratum": "baseballfield",
+          "n_objects": 15
+        },
+        {
+          "sample_id": "16499",
+          "stratum": "expresswayservicearea",
+          "n_objects": 6
+        },
+        {
+          "sample_id": "19308",
+          "stratum": "dam",
+          "n_objects": 2
+        },
+        {
+          "sample_id": "15994",
+          "stratum": "windmill",
+          "n_objects": 3
+        },
+        {
+          "sample_id": "20188",
+          "stratum": "bridge",
+          "n_objects": 1
+        },
+        {
+          "sample_id": "15023",
+          "stratum": "golffield",
+          "n_objects": 1
+        }
+      ]
+    },
+    "rsicd": {
+      "split": "test",
+      "n_candidates": 1027,
+      "samples": [
+        {
+          "sample_id": "pond_49",
+          "stratum": "pond",
+          "n_objects": 0
+        },
+        {
+          "sample_id": "airport_54",
+          "stratum": "airport",
+          "n_objects": 0
+        },
+        {
+          "sample_id": "river_50",
+          "stratum": "river",
+          "n_objects": 0
+        },
+        {
+          "sample_id": "storagetanks_354",
+          "stratum": "storagetanks",
+          "n_objects": 0
+        },
+        {
+          "sample_id": "stadium_47",
+          "stratum": "stadium",
+          "n_objects": 0
+        },
+        {
+          "sample_id": "square_52",
+          "stratum": "square",
+          "n_objects": 0
+        },
+        {
+          "sample_id": "resort_64",
+          "stratum": "resort",
+          "n_objects": 0
+        },
+        {
+          "sample_id": "baseballfield_61",
+          "stratum": "baseballfield",
+          "n_objects": 0
+        },
+        {
+          "sample_id": "beach_45",
+          "stratum": "beach",
+          "n_objects": 0
+        },
+        {
+          "sample_id": "railwaystation_66",
+          "stratum": "railwaystation",
+          "n_objects": 0
+        },
+        {
+          "sample_id": "meadow_54",
+          "stratum": "meadow",
+          "n_objects": 0
+        },
+        {
+          "sample_id": "port_49",
+          "stratum": "port",
+          "n_objects": 0
+        },
+        {
+          "sample_id": "forest_57",
+          "stratum": "forest",
+          "n_objects": 0
+        },
+        {
+          "sample_id": "bridge_345",
+          "stratum": "bridge",
+          "n_objects": 0
+        },
+        {
+          "sample_id": "church_65",
+          "stratum": "church",
+          "n_objects": 0
+        }
+      ]
+    }
+  }
+}

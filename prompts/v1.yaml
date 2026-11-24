@@ -1,0 +1,83 @@
+# Prompt templates, version v1. Never edit a version after results were produced with it:
+# copy this file to v2.yaml, change it there and set prompts.version in configs/config.yaml.
+# Input: read by src/prompts.py. Output: none (text only).
+#
+# Two prompt families (stage 3 decision):
+#   native - each model's own documented output format (fair test of its localization ability)
+#   json   - our ModelReport JSON (src/report_schema.py); boxes use the model's own coordinate convention
+# Placeholders (replaced by src/prompts.py): {classes} {coord_rule} {task_rule} {time_info}
+version: v1
+
+# Class vocabulary given to the models (readable names of the dataset classes).
+# Giving the vocabulary is "zero-shot with a known label set"; the ground-truth classes of the
+# image itself are never given.
+classes:
+  dior: airplane, airport, baseball field, basketball court, bridge, chimney, dam, expressway service area, expressway toll station, golf field, ground track field, harbor, overpass, ship, stadium, storage tank, tennis court, train station, vehicle, windmill
+  visdrone: pedestrian, people, bicycle, car, van, truck, tricycle, awning-tricycle, bus, motor
+
+native:
+  qwen2vl:
+    # Uses the grounding special tokens of Qwen2-VL (verified in the tokenizer); coordinates 0-1000.
+    # "Box each object separately" is explicit because of the PDF feasibility result
+    # (one wide box around 6 airplanes on DIOR).
+    detection: >-
+      Detect every individual object in this image that belongs to one of these classes: {classes}.
+      Give each single object its own bounding box. Never draw one box around a group of objects.
+      For every object write <|object_ref_start|>class name<|object_ref_end|><|box_start|>(x1,y1),(x2,y2)<|box_end|>.
+    change: >-
+      The first image was taken earlier and the second image later, over the same area.
+      Describe what changed between them. Then give each changed area its own bounding box in the second image,
+      written as <|object_ref_start|>short description of the change<|object_ref_end|><|box_start|>(x1,y1),(x2,y2)<|box_end|>.
+    caption: Describe this remote sensing image in one sentence.
+  qwen25vl:
+    # Wording and output format follow the official Qwen2.5-VL grounding cookbook (2025-01):
+    # a JSON list of {"bbox_2d": [x1, y1, x2, y2], "label": ...} in absolute pixels of the model input.
+    detection: >-
+      Locate every individual object in this image that belongs to one of these classes: {classes}.
+      Give each single object its own bounding box. Never draw one box around a group of objects.
+      Output all the coordinates in JSON format as a list of {"bbox_2d": [x1, y1, x2, y2], "label": "class name"}.
+    change: >-
+      The first image was taken earlier and the second image later, over the same area.
+      Locate every area that changed between them, each with its own bounding box in the second image.
+      Output all the coordinates in JSON format as a list of {"bbox_2d": [x1, y1, x2, y2], "label": "short description of the change"}.
+    caption: Describe this remote sensing image in one sentence.
+  geovlm:
+    # Verbatim prompts from the GeoVLM-R1 GRPO training data (GeoVLM-R1-Toolkit, train/GRPO_EarthDial_Instructs):
+    #   grounding: GRPO_GeoChat_grounding.jsonl, change: GRPO_ChangeDetection_Caption.jsonl,
+    #   caption: GRPO_RSICD-Captions_instructions_train.jsonl
+    detection: give a thorough description of what you see in this image
+    change: are there any semantic change detected in the provided images?
+    caption: Could you please provide the caption for the input image?
+
+json:
+  template: |-
+    You write a structured report about {image_desc}.
+    Return ONLY one JSON object, with no other text, with exactly these keys:
+    {
+      "summary": "one or two sentences",
+      "what": [{"class": "name", "count": 0, "description": "short text", "change": null, "evidence": {"box_ids": [0], "regions": ["center"]}}],
+      "where": [{"id": 0, "class": "name", "box": [x1, y1, x2, y2], "region": "center"}],
+      "when": "unknown"
+    }
+    Rules:
+    - {task_rule}
+    - Every box is [x1, y1, x2, y2] with {coord_rule}. Give each single object its own box and a unique id.
+    - "region" and "evidence.regions" use only: top_left, top_center, top_right, middle_left, center, middle_right, bottom_left, bottom_center, bottom_right, whole_image.
+    - "evidence.box_ids" lists the ids of the boxes in "where" that support the claim.
+    - {time_info} Never guess a date, a season or a year.
+    - Do not give geographic coordinates or place names. Only state what is visible in the image.
+  image_desc:
+    detection: one aerial or satellite image
+    change: two images of the same area (the first image is earlier, the second is later)
+    caption: one aerial or satellite image
+  task_rule:
+    detection: '"what" has one entry per class you see, with "count" = number of objects of that class; only use these classes: {classes}. "change" is null.'
+    change: 'Report each change between the two images. "change" is one of "appeared", "disappeared", "modified". Boxes refer to the second image.'
+    caption: 'Describe the whole scene in "summary". "what" lists the main elements of the scene ("count" may be 0 if not countable). "where" may be an empty list; then use "whole_image" or other regions as evidence. "change" is null.'
+  coord_rule:
+    qwen2vl: integer coordinates from 0 to 1000 relative to the image size (0 = left/top edge, 1000 = right/bottom edge)
+    qwen25vl: absolute pixel coordinates of the image you see (origin at the top-left corner)
+    geovlm: integer pixel coordinates on the 448 x 448 image (origin at the top-left corner)
+  time_info:
+    known: 'The acquisition time from the metadata is "{time}". Write exactly this value in "when".'
+    unknown: 'No acquisition date or time is given, so "when" must be "unknown".'

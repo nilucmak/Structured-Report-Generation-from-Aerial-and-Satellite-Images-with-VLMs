@@ -1,0 +1,19 @@
+# Datasets are large and licensed: not committed
+data/*
+!data/README.md
+!data/.gitkeep
+
+# The proposal PDF contains personal information: not committed
+docs/*.pdf
+
+# Raw model outputs can grow large; remove this line if we decide to commit pilot outputs
+results/raw/*.jsonl
+
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+.DS_Store
+pilot_data/
+pilot_data.zip
