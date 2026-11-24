@@ -49,7 +49,7 @@ images:
   geovlm_size: 448           # GeoVLM-R1 official inference: resized_height = resized_width = 448
 
 prompts:
-  version: v1                # prompts/<version>.yaml ; every raw line stores the version
+  version: v2                # prompts/<version>.yaml ; every raw line stores the version (v1 kept for the record)
 
 # family: decides the prompt wording, the coordinate convention and the box parser (src/box_parsers.py).
 models:

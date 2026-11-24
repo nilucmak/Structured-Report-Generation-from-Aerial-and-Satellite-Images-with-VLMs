@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from box_parsers import obb_to_hbb, parse_record  # noqa: E402
 from config import load_config  # noqa: E402
-from prompts import load_prompts, render_prompt  # noqa: E402
+from prompts import load_prompts, render_prompts  # noqa: E402
 
 
 def check(cond, msg):
@@ -85,20 +85,35 @@ def main():
     p = parse_record(rec("qwen25vl", good.replace("[0, 0, 500, 500]", '"top left"'), prompt_family="json"))
     check(not p["ok"] and "where.0.box" in p["error"], "non-numeric box is rejected by the schema")
 
+    q2 = "<|object_ref_start|>airplane<|object_ref_end|><|box_start|>(100,200),(150,260)<|box_end|><|im_end|>"
+    p = parse_record({**rec("qwen2vl", q2, w=800, h=600), "query_class": "ship"})
+    check(all(b["label"] == "ship" for b in p["boxes"]) and p["boxes"][0]["model_label"] == "airplane",
+          "per-class prompt: label = asked class, model label kept")
+
     print("Prompt rendering:")
     cfg = load_config()
-    prompts = load_prompts(cfg)
-    for task, ds in [("detection", "dior"), ("detection", "visdrone"), ("change", "levir_cdplus"), ("caption", "rsicd")]:
-        sample = {"dataset": ds, "task": task, "time": None}
-        for fam in ("qwen2vl", "qwen25vl", "geovlm"):
-            for pf in ("native", "json"):
-                text, pid = render_prompt(prompts, pf, fam, sample)
-                assert "{classes}" not in text and "{task_rule}" not in text and "{coord_rule}" not in text, pid
-                assert pid == f"{pf}.{fam}.{task}.v1", pid
-    check(True, "all 24 prompt combinations render with no placeholder left")
-    text, _ = render_prompt(prompts, "json", "qwen2vl", {"dataset": "dior", "task": "detection", "time": None})
+    combos = [("detection", "dior"), ("detection", "visdrone"), ("change", "levir_cdplus"), ("caption", "rsicd")]
+    for version in ("v1", "v2"):
+        prompts = load_prompts(cfg, version)
+        for task, ds in combos:
+            sample = {"dataset": ds, "task": task, "time": None}
+            for fam in ("qwen2vl", "qwen25vl", "geovlm"):
+                for pf in ("native", "json"):
+                    for it in render_prompts(prompts, pf, fam, sample):
+                        t = it["text"]
+                        assert not any(k in t for k in ("{classes}", "{class}", "{task_rule}", "{coord_rule}")), it
+                        assert it["prompt_id"].startswith(f"{pf}.{fam}.{task}.{version}"), it
+    check(True, "v1 and v2: all prompt combinations render with no placeholder left")
+    prompts = load_prompts(cfg, "v2")
+    items = render_prompts(prompts, "native", "qwen2vl", {"dataset": "dior", "task": "detection", "time": None})
+    check(len(items) == 20 and items[0]["prompt_id"] == "native.qwen2vl.detection.v2/airplane"
+          and "airplane" in items[0]["text"], "v2 Qwen detection: one prompt per DIOR class")
+    check(all("<|" not in it["text"] for it in items), "v2 Qwen2-VL prompt has no special-token template")
+    items = render_prompts(prompts, "native", "geovlm", {"dataset": "dior", "task": "detection", "time": None})
+    check(len(items) == 1 and items[0]["query_class"] is None, "v2 GeoVLM detection: one prompt (training prompt)")
+    text = render_prompts(prompts, "json", "qwen2vl", {"dataset": "dior", "task": "detection", "time": None})[0]["text"]
     check('"when" must be "unknown"' in text and "storage tank" in text, "JSON prompt: unknown time + class list")
-    text, _ = render_prompt(prompts, "json", "qwen2vl", {"dataset": "dior", "task": "detection", "time": "2018-05-01"})
+    text = render_prompts(prompts, "json", "qwen2vl", {"dataset": "dior", "task": "detection", "time": "2018-05-01"})[0]["text"]
     check('"2018-05-01"' in text, "metadata time is passed to the prompt when it exists")
     print("ALL OK")
 

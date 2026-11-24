@@ -196,4 +196,6 @@ def parse_record(record):
         boxes = parse_geovlm_native(raw, w, h, record.get("geovlm_size", 448))
     else:
         raise ValueError(f"unknown model family '{fam}'")
+    if record.get("query_class"):   # per-class prompt: the class is the one asked for, the model's label is kept aside
+        boxes = [{**b, "model_label": b["label"], "label": record["query_class"]} for b in boxes]
     return {"ok": True, "boxes": boxes, "report": None, "error": None, "text": text}

@@ -1,7 +1,8 @@
 """Runs one model on the pilot samples with one prompt family and appends raw outputs to a JSONL file.
 
 Input: configs/config.yaml, results/pilot_samples.json, prompts/<version>.yaml, images under paths.data_root.
-Output: results/raw/<model>__<prompt family>__<prompt version>.jsonl, one line per sample: raw text, seconds,
+Output: results/raw/<model>__<prompt family>__<prompt version>.jsonl, one line per prompt (per sample, or
+per sample and class for per-class prompts): raw text, seconds,
 peak VRAM (GB), number of new tokens and a truncated flag. Already finished samples are skipped (safe to re-run
 after a Colab disconnect). Parsing happens later (src/box_parsers.py), so the raw text is never changed.
 
@@ -17,7 +18,7 @@ from pathlib import Path
 
 from config import load_config, resolve_path
 from data_loaders import load_dataset
-from prompts import PROMPT_FAMILIES, load_prompts, render_prompt
+from prompts import PROMPT_FAMILIES, load_prompts, render_prompts
 
 DATASETS = ("dior", "visdrone", "levir_cdplus", "rsicd")
 
@@ -169,6 +170,11 @@ def environment():
 
 # ---------------------------------------------------------------- main loop
 
+def jobs_for(prompts, prompt_family, family, samples):
+    """(sample, prompt item) pairs: usually one per sample, one per class for per-class prompts."""
+    return [(s, item) for s in samples for item in render_prompts(prompts, prompt_family, family, s)]
+
+
 def run(cfg, model_key, prompt_family, datasets, limit=None, dry_run=False):
     mcfg = cfg["models"][model_key]
     family = mcfg["family"]
@@ -178,58 +184,57 @@ def run(cfg, model_key, prompt_family, datasets, limit=None, dry_run=False):
         samples = [s for name in datasets for s in [x for x in samples if x["dataset"] == name][:limit]]
     out_path = output_path(cfg, model_key, prompt_family, prompts["version"])
     done = done_keys(out_path)
+    jobs = jobs_for(prompts, prompt_family, family, samples)
+    todo = [(s, it) for s, it in jobs if (s["dataset"], s["sample_id"], it["prompt_id"]) not in done]
 
     if dry_run:
         shown = set()
         for s in samples:
-            files = image_files(cfg, s)
-            missing = [f for f in files if not Path(f).exists()]
+            missing = [f for f in image_files(cfg, s) if not Path(f).exists()]
             if missing:
                 raise FileNotFoundError(f"image not found: {missing}")
-            if s["task"] not in shown:   # print one prompt per task
+        for s, it in jobs:
+            if s["task"] not in shown:   # print the first prompt of each task
                 shown.add(s["task"])
-                text, pid = render_prompt(prompts, prompt_family, family, s)
-                print(f"--- {pid} ({s['dataset']} {s['sample_id']}, checkpoint: {checkpoint_of(mcfg, s['task'])})")
-                print(text)
-        todo = sum((s["dataset"], s["sample_id"], render_prompt(prompts, prompt_family, family, s)[1]) not in done
-                   for s in samples)
-        print(f"\nDry run OK: {len(samples)} samples, all images found, {todo} still to run -> {out_path}")
+                n = sum(1 for x, _ in jobs if x is s)
+                print(f"--- {it['prompt_id']} ({s['dataset']} {s['sample_id']}, {n} prompt(s) for this sample, "
+                      f"checkpoint: {checkpoint_of(mcfg, s['task'])})")
+                print(it["text"])
+        print(f"\nDry run OK: {len(samples)} samples, {len(jobs)} prompts, all images found, "
+              f"{len(todo)} still to run -> {out_path}")
         return
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     env = environment()
-    # GeoVLM-R1 needs a different checkpoint per task, so samples are grouped by checkpoint
+    # GeoVLM-R1 needs a different checkpoint per task, so jobs are grouped by checkpoint
     groups = {}
-    for s in samples:
-        groups.setdefault(checkpoint_of(mcfg, s["task"]), []).append(s)
+    for s, it in todo:
+        groups.setdefault(checkpoint_of(mcfg, s["task"]), []).append((s, it))
+    if not groups:
+        print(f"[{model_key}] nothing to do")
     for sub, group in groups.items():
-        todo = [s for s in group if (s["dataset"], s["sample_id"],
-                                     render_prompt(prompts, prompt_family, family, s)[1]) not in done]
-        if not todo:
-            print(f"[{model_key}/{sub}] nothing to do")
-            continue
-        model, processor, _ = load_model(cfg, model_key, todo[0]["task"])
+        model, processor, _ = load_model(cfg, model_key, group[0][0]["task"])
         import torch
         model_vram = round(torch.cuda.memory_allocated() / 1e9, 3) if torch.cuda.is_available() else None
         torch.manual_seed(cfg["seed"])
-        for i, s in enumerate(todo, 1):
-            prompt, pid = render_prompt(prompts, prompt_family, family, s)
+        for i, (s, it) in enumerate(group, 1):
             max_new = cfg["generation"]["max_new_tokens"][s["task"]]
-            res = INFER[family](cfg, model, processor, s, prompt, max_new)
+            res = INFER[family](cfg, model, processor, s, it["text"], max_new)
             record = {
                 "dataset": s["dataset"], "sample_id": s["sample_id"], "task": s["task"],
                 "model": model_key, "family": family, "hf_id": mcfg["hf_id"], "checkpoint": sub,
                 "quantization": mcfg["quantization"], "dtype": cfg["generation"]["dtype"],
-                "prompt_family": prompt_family, "prompt_version": prompts["version"], "prompt_id": pid,
-                "prompt": prompt, "max_new_tokens": max_new, "do_sample": cfg["generation"]["do_sample"],
-                "repetition_penalty": cfg["generation"]["repetition_penalty"],
+                "prompt_family": prompt_family, "prompt_version": prompts["version"], "prompt_id": it["prompt_id"],
+                "query_class": it["query_class"], "prompt": it["text"], "max_new_tokens": max_new,
+                "do_sample": cfg["generation"]["do_sample"], "repetition_penalty": cfg["generation"]["repetition_penalty"],
                 "image_width": s["width"], "image_height": s["height"], "geovlm_size": cfg["images"]["geovlm_size"],
                 **res, "model_vram_gb": model_vram, "env": env,
                 "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             }
             with open(out_path, "a", encoding="utf-8") as f:   # append line by line: nothing lost on disconnect
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
-            print(f"[{model_key}/{sub}] {i}/{len(todo)} {s['dataset']} {s['sample_id']}: "
+            q = f" [{it['query_class']}]" if it["query_class"] else ""
+            print(f"[{model_key}/{sub}] {i}/{len(group)} {s['dataset']} {s['sample_id']}{q}: "
                   f"{res['seconds']} s, {res['n_new_tokens']} tokens, peak {res['peak_vram_gb']} GB"
                   + (" TRUNCATED" if res["truncated"] else ""))
         del model, processor

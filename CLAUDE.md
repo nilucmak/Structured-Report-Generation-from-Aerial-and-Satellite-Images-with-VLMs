@@ -122,6 +122,16 @@ The PDF is git-ignored.
 - Qwen images: min_pixels 256·28², max_pixels 1280·28² (model-card example). GeoVLM: 448×448.
 - GeoVLM-R1 checkpoint per task: detection → grounding, change → CD_Caption, caption → Image_caption.
 - Detection prompts give the dataset's class vocabulary (never the image's ground-truth classes).
+- **Prompt v1 → v2 (first Colab tiny run, 2026-11-24):**
+  - With v1, both Qwen models drew one box over the whole DIOR image and labelled the scene (`airport`).
+  - Qwen2-VL copied the special-token template in the prompt literally (`class name`, and it echoed the change prompt).
+  - v2 (user's choice): Qwen native detection asks **one class per query**, which gives 480 prompts per Qwen model
+    and also measures hallucinated classes. There is no template text in the prompts. GeoVLM prompts and the json family are unchanged.
+  - v1 files are kept and reported as v1 (prompt sensitivity).
+  - No official Qwen2-VL grounding prompt exists in its README or model card; the v2 wording is our design.
+- Real outputs confirmed the formats: GeoVLM `[[x1,y1,x2,y2,θ]]` on 448 with no `<think>` tags; Qwen2.5-VL `bbox_2d`
+  in model-input pixels (800 px is resized to 812); Qwen2-VL emits its box tokens. T4 peak VRAM: Qwen2-VL 7.3 GB,
+  Qwen2.5-VL 8.6 GB, GeoVLM 7.9 GB.
 - Raw outputs keep special tokens; parsing is separate. Colab gets only `pilot_data.zip` (~65 MB, `src/pack_pilot_data.py`).
 
 ## Deviations from the PDF (tell the advisor)
@@ -135,8 +145,8 @@ The PDF is git-ignored.
 - [x] Stage 0 — Setup (CLAUDE.md, folder layout, requirements, README, git init)
 - [x] Stage 1 — Dataset loaders + 15-per-dataset pilot selection (`results/pilot_samples.json`, all 4 datasets selected)
 - [x] Stage 2 — Pydantic report schema (`src/report_schema.py`, tests in `tests/schema_test.py`)
-- [~] Stage 3 — code done (`src/run_inference.py`, `src/box_parsers.py`, `prompts/v1.yaml`, `notebooks/stage3_inference.ipynb`,
-  tests in `tests/parser_test.py`); **not yet run on Colab**
+- [~] Stage 3 — code done (`src/run_inference.py`, `src/box_parsers.py`, `prompts/v1.yaml` + `v2.yaml`, `notebooks/stage3_inference.ipynb`,
+  tests in `tests/parser_test.py`); tiny run done on Colab with v1 (transformers 4.49.0 works); v2 tiny run + full pilot pending
 - [ ] Stage 4 — Free vs Outlines-constrained generation
 - [ ] Stage 5 — Metrics and one script that rebuilds all tables
 - [ ] Stage 6 — Human evaluation template + Cohen's kappa
