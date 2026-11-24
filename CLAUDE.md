@@ -129,6 +129,16 @@ The PDF is git-ignored.
     and also measures hallucinated classes. There is no template text in the prompts. GeoVLM prompts and the json family are unchanged.
   - v1 files are kept and reported as v1 (prompt sensitivity).
   - No official Qwen2-VL grounding prompt exists in its README or model card; the v2 wording is our design.
+- **Qwen2-VL vision-encoder bug (found by a Colab probe, 2026-11-24):** with default bitsandbytes settings the vision
+  encoder was quantized to 4-bit too and the model was blind: it called a street an "abstract painting", saw 0 cars and
+  drew one box over the whole image. Fix: `quant_skip_modules: [visual, lm_head]` in config (vision layers become
+  `Linear`, language layers `Linear4bit`; 7.2 GB after loading). **All v1/v2 Qwen2-VL results are invalid.**
+- **Prompt v3:**
+  - v2 Qwen detection answered "none"/[] for all 30 queries (even 63 cars). The "if there is none, answer none" sentence
+    made the models skip.
+  - v3 uses wordings that the probe confirmed produce real boxes. Qwen2.5-VL: the official cookbook sentence. Qwen2-VL:
+    "Detect the bounding box of every {class} in this image." There is no escape sentence.
+  - The json template uses `<...>` descriptions; v2 outputs had copied the example values `name`/`short text`.
 - Real outputs confirmed the formats: GeoVLM `[[x1,y1,x2,y2,θ]]` on 448 with no `<think>` tags; Qwen2.5-VL `bbox_2d`
   in model-input pixels (800 px is resized to 812); Qwen2-VL emits its box tokens. T4 peak VRAM: Qwen2-VL 7.3 GB,
   Qwen2.5-VL 8.6 GB, GeoVLM 7.9 GB.
@@ -140,13 +150,14 @@ The PDF is git-ignored.
    The PDF's "other technically suitable models" may allow this; confirm with the advisor.
 2. Pilot is 60 samples; the full study is 400.
 3. EVREN experiments postponed.
+4. Qwen2-VL-7B "4-bit": only the language model is 4-bit; the vision encoder stays float16 (it was blind in 4-bit on T4).
 
 ## Stage status
 - [x] Stage 0 — Setup (CLAUDE.md, folder layout, requirements, README, git init)
 - [x] Stage 1 — Dataset loaders + 15-per-dataset pilot selection (`results/pilot_samples.json`, all 4 datasets selected)
 - [x] Stage 2 — Pydantic report schema (`src/report_schema.py`, tests in `tests/schema_test.py`)
-- [~] Stage 3 — code done (`src/run_inference.py`, `src/box_parsers.py`, `prompts/v1.yaml` + `v2.yaml`, `notebooks/stage3_inference.ipynb`,
-  tests in `tests/parser_test.py`); tiny run done on Colab with v1 (transformers 4.49.0 works); v2 tiny run + full pilot pending
+- [~] Stage 3 — code done (`src/run_inference.py`, `src/box_parsers.py`, `prompts/v1.yaml`, `v2.yaml`, `v3.yaml`, `notebooks/stage3_inference.ipynb`, `src/show_results.py`,
+  tests in `tests/parser_test.py`); tiny run done on Colab with v1 (transformers 4.49.0 works); v3 tiny run + full pilot pending
 - [ ] Stage 4 — Free vs Outlines-constrained generation
 - [ ] Stage 5 — Metrics and one script that rebuilds all tables
 - [ ] Stage 6 — Human evaluation template + Cohen's kappa

@@ -27,5 +27,6 @@ pycocoevalcap
 scikit-learn
 
 tqdm
+matplotlib                 # result figures in the notebook (src/show_results.py)
 
 # Added in stage 4: outlines (model compatibility will be verified then)

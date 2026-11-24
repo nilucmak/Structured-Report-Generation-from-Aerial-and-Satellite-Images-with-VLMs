@@ -49,14 +49,17 @@ images:
   geovlm_size: 448           # GeoVLM-R1 official inference: resized_height = resized_width = 448
 
 prompts:
-  version: v2                # prompts/<version>.yaml ; every raw line stores the version (v1 kept for the record)
+  version: v3                # prompts/<version>.yaml ; every raw line stores the version (v1, v2 kept for the record)
 
 # family: decides the prompt wording, the coordinate convention and the box parser (src/box_parsers.py).
 models:
   qwen2vl_7b:
     family: qwen2vl
     hf_id: Qwen/Qwen2-VL-7B-Instruct
-    quantization: nf4_4bit   # bitsandbytes 4-bit NF4 (~6 GB VRAM in the PDF feasibility test)
+    quantization: nf4_4bit   # bitsandbytes 4-bit NF4, language model only (7.2 GB VRAM after loading on T4)
+    # Kept in float16, NOT quantized. With the vision encoder in 4-bit the model was blind on the T4
+    # (described a street as an "abstract painting", 0 cars, one box over the whole image); verified on Colab.
+    quant_skip_modules: [visual, lm_head]
   qwen25vl_3b:
     family: qwen25vl
     hf_id: Qwen/Qwen2.5-VL-3B-Instruct

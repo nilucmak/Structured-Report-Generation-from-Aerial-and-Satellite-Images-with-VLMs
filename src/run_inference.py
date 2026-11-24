@@ -95,7 +95,8 @@ def load_model(cfg, model_key, task):
     kwargs = {"torch_dtype": dtype, "device_map": "auto", "attn_implementation": "sdpa"}  # no flash-attn on T4
     if mcfg["quantization"] == "nf4_4bit":
         kwargs["quantization_config"] = BitsAndBytesConfig(
-            load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=dtype)
+            load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=dtype,
+            llm_int8_skip_modules=mcfg.get("quant_skip_modules"))   # used for 4-bit too: these modules stay float16
     cls = Qwen2VLForConditionalGeneration if mcfg["family"] == "qwen2vl" else Qwen2_5_VLForConditionalGeneration
     model = cls.from_pretrained(path, **kwargs).eval()
     processor = AutoProcessor.from_pretrained(path)
@@ -223,8 +224,8 @@ def run(cfg, model_key, prompt_family, datasets, limit=None, dry_run=False):
             record = {
                 "dataset": s["dataset"], "sample_id": s["sample_id"], "task": s["task"],
                 "model": model_key, "family": family, "hf_id": mcfg["hf_id"], "checkpoint": sub,
-                "quantization": mcfg["quantization"], "dtype": cfg["generation"]["dtype"],
-                "prompt_family": prompt_family, "prompt_version": prompts["version"], "prompt_id": it["prompt_id"],
+                "quantization": mcfg["quantization"], "quant_skip_modules": mcfg.get("quant_skip_modules"),
+                "dtype": cfg["generation"]["dtype"], "prompt_family": prompt_family, "prompt_version": prompts["version"], "prompt_id": it["prompt_id"],
                 "query_class": it["query_class"], "prompt": it["text"], "max_new_tokens": max_new,
                 "do_sample": cfg["generation"]["do_sample"], "repetition_penalty": cfg["generation"]["repetition_penalty"],
                 "image_width": s["width"], "image_height": s["height"], "geovlm_size": cfg["images"]["geovlm_size"],

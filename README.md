@@ -49,6 +49,8 @@ python src/pack_pilot_data.py       # copies only the 60 pilot samples -> pilot_
 python src/run_inference.py --model qwen2vl_7b --family native --dry-run   # prompts + image check, no GPU
 ```
 Inference runs on Colab: `notebooks/stage3_inference.ipynb` (upload `pilot_data.zip` to Google Drive first).
+The notebook has three parts (setup, run, results); the results part (`src/show_results.py`) draws ground-truth
+and model boxes on the images and prints a summary table per model.
 Each run appends to `results/raw/<model>__<native|json>__<prompt version>.jsonl`; finished samples are skipped.
 
 Prompt families: `native` uses each model's own documented output format (fair test of localization);

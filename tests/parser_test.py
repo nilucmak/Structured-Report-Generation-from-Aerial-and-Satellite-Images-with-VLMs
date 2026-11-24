@@ -93,7 +93,7 @@ def main():
     print("Prompt rendering:")
     cfg = load_config()
     combos = [("detection", "dior"), ("detection", "visdrone"), ("change", "levir_cdplus"), ("caption", "rsicd")]
-    for version in ("v1", "v2"):
+    for version in ("v1", "v2", "v3"):
         prompts = load_prompts(cfg, version)
         for task, ds in combos:
             sample = {"dataset": ds, "task": task, "time": None}
@@ -103,7 +103,7 @@ def main():
                         t = it["text"]
                         assert not any(k in t for k in ("{classes}", "{class}", "{task_rule}", "{coord_rule}")), it
                         assert it["prompt_id"].startswith(f"{pf}.{fam}.{task}.{version}"), it
-    check(True, "v1 and v2: all prompt combinations render with no placeholder left")
+    check(True, "v1, v2, v3: all prompt combinations render with no placeholder left")
     prompts = load_prompts(cfg, "v2")
     items = render_prompts(prompts, "native", "qwen2vl", {"dataset": "dior", "task": "detection", "time": None})
     check(len(items) == 20 and items[0]["prompt_id"] == "native.qwen2vl.detection.v2/airplane"
@@ -111,7 +111,13 @@ def main():
     check(all("<|" not in it["text"] for it in items), "v2 Qwen2-VL prompt has no special-token template")
     items = render_prompts(prompts, "native", "geovlm", {"dataset": "dior", "task": "detection", "time": None})
     check(len(items) == 1 and items[0]["query_class"] is None, "v2 GeoVLM detection: one prompt (training prompt)")
+    prompts = load_prompts(cfg, "v3")
+    for fam in ("qwen2vl", "qwen25vl"):
+        items = render_prompts(prompts, "native", fam, {"dataset": "visdrone", "task": "detection", "time": None})
+        assert len(items) == 10 and all("none" not in it["text"] and "[]" not in it["text"] for it in items), fam
+    check(True, "v3 Qwen detection: one prompt per class, no 'none'/[] escape sentence")
     text = render_prompts(prompts, "json", "qwen2vl", {"dataset": "dior", "task": "detection", "time": None})[0]["text"]
+    check('"name"' not in text and "short text" not in text, "v3 JSON template has no copyable example values")
     check('"when" must be "unknown"' in text and "storage tank" in text, "JSON prompt: unknown time + class list")
     text = render_prompts(prompts, "json", "qwen2vl", {"dataset": "dior", "task": "detection", "time": "2018-05-01"})[0]["text"]
     check('"2018-05-01"' in text, "metadata time is passed to the prompt when it exists")

@@ -1,0 +1,86 @@
+# Prompt templates, version v3 (changes vs v1/v2 are listed under "changes"). Never edit a version after results were produced with it:
+# copy this file to v2.yaml, change it there and set prompts.version in configs/config.yaml.
+# Input: read by src/prompts.py. Output: none (text only).
+#
+# Two prompt families (stage 3 decision):
+#   native - each model's own documented output format (fair test of its localization ability)
+#   json   - our ModelReport JSON (src/report_schema.py); boxes use the model's own coordinate convention
+# Placeholders (replaced by src/prompts.py): {classes} {coord_rule} {task_rule} {time_info}
+version: v3
+changes: >-
+  v1 and v2 Qwen2-VL results are INVALID: its vision encoder was quantized to 4-bit and the model was blind
+  (fixed in config: quant_skip_modules). v2 Qwen detection answered "none"/[] for all 30 queries, even for
+  63 cars: the "if there is none, answer none" escape made the models skip. A probe on Colab showed that
+  the wordings below give real boxes (Qwen2.5-VL: many separate car boxes; Qwen2-VL: grounding tokens).
+  v3: Qwen detection keeps one class per query, uses exactly those probed wordings and has no escape
+  sentence (boxes for absent classes count as false positives). The json template now uses <...>
+  descriptions instead of example values, because v2 outputs copied "name" and "short text" and put box
+  coordinates in "box_ids". GeoVLM-R1 native prompts are unchanged.
+
+# Class vocabulary given to the models (readable names of the dataset classes).
+# Giving the vocabulary is "zero-shot with a known label set"; the ground-truth classes of the
+# image itself are never given.
+classes:
+  dior: [airplane, airport, baseball field, basketball court, bridge, chimney, dam, expressway service area,
+         expressway toll station, golf field, ground track field, harbor, overpass, ship, stadium, storage tank,
+         tennis court, train station, vehicle, windmill]
+  visdrone: [pedestrian, people, bicycle, car, van, truck, tricycle, awning-tricycle, bus, motor]
+
+native:
+  # A template containing {class} is sent once per class of the dataset vocabulary (one raw line per class).
+  qwen2vl:
+    # Probed on Colab (v3): this wording makes Qwen2-VL answer with its grounding tokens and 0-1000 coordinates.
+    # No official Qwen2-VL grounding prompt was found; the wording is our design.
+    detection: Detect the bounding box of every {class} in this image.
+    change: >-
+      The first image was taken earlier and the second image later, over the same area.
+      Detect the bounding box of every area in the second image that changed.
+    caption: Describe this remote sensing image in one sentence.
+  qwen25vl:
+    # Exactly the wording of the official Qwen2.5-VL grounding cookbook ("Outline the position of each small
+    # cake and output all the coordinates in JSON format."); probed on Colab (v3).
+    detection: Outline the position of each {class} and output all the coordinates in JSON format.
+    change: >-
+      The first image was taken earlier and the second image later, over the same area.
+      Outline the position of each changed area in the second image and output all the coordinates in JSON format.
+    caption: Describe this remote sensing image in one sentence.
+  geovlm:
+    # Verbatim prompts from the GeoVLM-R1 GRPO training data (GeoVLM-R1-Toolkit, train/GRPO_EarthDial_Instructs):
+    #   grounding: GRPO_GeoChat_grounding.jsonl, change: GRPO_ChangeDetection_Caption.jsonl,
+    #   caption: GRPO_RSICD-Captions_instructions_train.jsonl
+    detection: give a thorough description of what you see in this image
+    change: are there any semantic change detected in the provided images?
+    caption: Could you please provide the caption for the input image?
+
+json:
+  template: |-
+    You write a structured report about {image_desc}.
+    Return ONLY one JSON object, with no other text. Replace every <...> with real content:
+    {
+      "summary": <one or two sentences about the image>,
+      "what": [{"class": <object class>, "count": <integer>, "description": <what it looks like>, "change": <null, "appeared", "disappeared" or "modified">, "evidence": {"box_ids": <list of "id" values from "where">, "regions": <list of region names>}}],
+      "where": [{"id": <integer, unique>, "class": <object class>, "box": [<x1>, <y1>, <x2>, <y2>], "region": <region name>}],
+      "when": <the acquisition time, see the rules>
+    }
+    Rules:
+    - {task_rule}
+    - Every box is [x1, y1, x2, y2] with {coord_rule}. Give each single object its own box and a unique id.
+    - Region names: top_left, top_center, top_right, middle_left, center, middle_right, bottom_left, bottom_center, bottom_right, whole_image.
+    - "box_ids" contains only "id" numbers of boxes in "where", never coordinates.
+    - {time_info} Never guess a date, a season or a year.
+    - Do not give geographic coordinates or place names. Only state what is visible in the image.
+  image_desc:
+    detection: one aerial or satellite image
+    change: two images of the same area (the first image is earlier, the second is later)
+    caption: one aerial or satellite image
+  task_rule:
+    detection: '"what" has one entry per class you see, with "count" = number of objects of that class; only use these classes: {classes}. "change" is null.'
+    change: 'Report each change between the two images. "change" is one of "appeared", "disappeared", "modified". Boxes refer to the second image.'
+    caption: 'Describe the whole scene in "summary". "what" lists the main elements of the scene ("count" may be 0 if not countable). "where" may be an empty list; then use "whole_image" or other regions as evidence. "change" is null.'
+  coord_rule:
+    qwen2vl: integer coordinates from 0 to 1000 relative to the image size (0 = left/top edge, 1000 = right/bottom edge)
+    qwen25vl: absolute pixel coordinates of the image you see (origin at the top-left corner)
+    geovlm: integer pixel coordinates on the 448 x 448 image (origin at the top-left corner)
+  time_info:
+    known: 'The acquisition time from the metadata is "{time}". Write exactly this value in "when".'
+    unknown: 'No acquisition date or time is given, so "when" must be "unknown".'
